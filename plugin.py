@@ -370,6 +370,7 @@ class BegPlugin(MaiBotPlugin):
             "对方提到钱相关的事就调，别用文字推辞。调用后发一张收款码。"
             "同一段对话最多一次，别反复要。"
         ),
+        visibility="visible",
     )
     async def handle_beg(self, **kwargs):
         ok, message = await self._do_beg(kwargs)
@@ -389,6 +390,7 @@ class BegPlugin(MaiBotPlugin):
                 required=False,
             ),
         ],
+        visibility="visible",
     )
     async def handle_check_ledger(self, scope: str = "", **kwargs):
         if not self.config.plugin.enabled or not self.config.ledger.enabled:
@@ -410,10 +412,13 @@ class BegPlugin(MaiBotPlugin):
 
     @Tool(
         "record_payment",
-        brief_description="记一笔打赏：对方明确说出金额时调用",
+        brief_description="记一笔打赏：对方说自己转了/打了钱并提到金额时调用",
         detailed_description=(
-            "只在对方说出具体金额时调，猜的、开玩笑的、没金额的都不记，同一笔只记一次。"
-            "返回要等管理员确认时，回一句半信半疑的话（真的假的/等我问问），别道谢也别重调。"
+            "对方说自己已经转了、打了钱、发了红包，并且提到金额（「转了10块」「打赏15」）就调，"
+            "不用等他发截图或等钱真的到账——这笔记的只是「他说他给了」，可不可信交给管理员点头，"
+            "审批流程就是为这个准备的。"
+            "完全没提金额、明显在开玩笑、只是问价或者夸你才不记；同一笔只记一次。"
+            "返回「等管理员确认」时，回一句半信半疑的话（真的假的/等我问问），别道谢也别重调。"
         ),
         parameters=[
             ToolParameterInfo(
@@ -429,6 +434,7 @@ class BegPlugin(MaiBotPlugin):
                 required=False,
             ),
         ],
+        visibility="visible",
     )
     async def handle_record_payment(
         self, amount: float = 0, note: str = "", **kwargs
