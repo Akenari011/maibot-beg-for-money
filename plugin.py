@@ -286,6 +286,24 @@ class RootConfig(PluginConfigBase):
     ledger: LedgerConfig = Field(default_factory=LedgerConfig)
 
 
+def _resolve_data_dir(base: Path) -> Path:
+    """兼容从旧插件 ID 升级的用户。
+
+    MaiBot 按 manifest.id 分配 data_dir。插件 ID 从 github.lbcheng1145.beg-for-money
+    改成 github.akenari011.beg-for-money 后，老用户的数据还躺在旧目录里。
+    规则：新目录不存在、旧目录存在 → 继续用旧目录；全新安装 → 用新目录。
+    """
+    old = base.parent / base.name.replace("akenari011", "lbcheng1145")
+    # 注意：MaiBot 在调用 on_load 之前就会把 data_dir 建出来（空目录），
+    # 所以不能只判断 base.exists()。以「目录里有没有实际文件」为准：
+    # 旧目录有数据、新目录还是空的 → 认定是从旧 ID 升级来的老用户，继续用旧目录。
+    old_has_data = old.is_dir() and any(old.iterdir())
+    new_has_data = base.is_dir() and any(base.iterdir())
+    if old_has_data and not new_has_data:
+        return old
+    return base
+
+
 class BegPlugin(MaiBotPlugin):
     config_model = RootConfig
 
@@ -322,7 +340,7 @@ class BegPlugin(MaiBotPlugin):
         else:
             self.ctx.logger.warning("讨饭插件已加载，但收款码图片未配置或不存在，工具将不可用")
 
-        self._ledger_path = Path(self.ctx.paths.data_dir) / "ledger.json"
+        self._ledger_path = _resolve_data_dir(Path(self.ctx.paths.data_dir)) / "ledger.json"
         self._ledger_path.parent.mkdir(parents=True, exist_ok=True)
         self._load_ledger()
         total = sum(self._amount_of(r) for r in self._ledger)
@@ -334,7 +352,7 @@ class BegPlugin(MaiBotPlugin):
         )
 
         # 待确认记录必须落盘：插件重载或重启后，管理员手里那个编号还得管用。
-        self._approvals_path = Path(self.ctx.paths.data_dir) / "approvals.json"
+        self._approvals_path = _resolve_data_dir(Path(self.ctx.paths.data_dir)) / "approvals.json"
         self._load_approvals()
         self._purge_approvals()
         self.ctx.logger.info(
